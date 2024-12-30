@@ -11,18 +11,17 @@ import { UserAttributes, Request, UserInfo } from '@/types';
 import { createClient } from '@/utils/supabase/client';
 
 export default function DashboardPageContainer() {
-  const [userInfo, setUserInfo] = useState<UserInfo | null>(null); // Set initial state as null
-  const [previousRequests, setPreviousRequests] = useState<Request[]>([]); // State to hold previous requests
-  const [loadingUser, setLoadingUser] = useState(true); // Loading state for user info
-  const [loadingRequests, setLoadingRequests] = useState(true); // Loading state for requests
-  const [error, setError] = useState<string | null>(null); // Error state
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+  const [previousRequests, setPreviousRequests] = useState<Request[]>([]);
+  const [loadingUser, setLoadingUser] = useState(true);
+  const [loadingRequests, setLoadingRequests] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedPage, setSelectedPage] = useState<'dashboard' | 'attributes' | 'previous' | 'new'>('dashboard');
-  
-  const [user, setUser] = useState<any>(null); // State to hold the authenticated user
-
+  const [user, setUser] = useState<any>(null);
+ 
   // Initialize Supabase client
   const supabase = createClient();
-
+ 
   useEffect(() => {
     const fetchUser = async () => {
       try {
@@ -30,91 +29,96 @@ export default function DashboardPageContainer() {
         if (error) {
           setError('Failed to authenticate user');
         } else {
-          setUser(user); // Set the user if successfully authenticated
+          setUser(user);
         }
       } catch (err) {
         setError('Error fetching user');
       }
     };
-
+ 
     fetchUser();
-  }, []); // Run only once on component mount
-
+  }, []);
+ 
   useEffect(() => {
     if (!user) return;
-
+ 
     const fetchUserInfo = async () => {
       try {
-        const res = await fetch(`/api/user/${user.id}`);
-        if (!res.ok) {
-          throw new Error('Failed to fetch user info');
-        }
-        const data: UserInfo = await res.json();
-        setUserInfo(data);
+        const { data, error } = await supabase
+          .from('users')
+          .select()
+          .eq('id', user.id)
+          .single();
+ 
+        if (error) throw new Error('Failed to fetch user info');
+        
+        // Cast data to UserInfo type
+        setUserInfo(data as UserInfo);
       } catch (err: any) {
         setError(err.message);
       } finally {
         setLoadingUser(false);
       }
     };
-
+ 
     fetchUserInfo();
-  }, [user]); // Trigger this effect only when user changes
-
+  }, [user]);
+ 
   useEffect(() => {
     const fetchPreviousRequests = async () => {
-      if (!userInfo) return; // Prevent fetch if userInfo is not available yet
-
+      if (!userInfo) return;
+ 
       try {
-        const res = await fetch(`/api/requests/${user.id}`);
-        if (!res.ok) {
-          throw new Error('Failed to fetch previous requests');
-        }
-        const data: Request[] | any = await res.json(); // The response can be an object or array
-
+        const { data, error } = await supabase
+          .from('requests')
+          .select('*')
+          .eq('user_id', user.id);
+ 
+        if (error) throw new Error('Failed to fetch previous requests');
+ 
         // Convert the response to an array if it is not already one
         const requestsArray = Array.isArray(data) ? data : [data];
-
-        // Now safely map over the array
+ 
+        // Transform the data to match the Request type
         const transformedRequests: Request[] = requestsArray.map((request: any) => ({
           id: request.id,
           resource: request.resource,
           action: request.action,
-          timestamp: request.timestamp, // Ensure timestamp is formatted correctly if needed
+          timestamp: request.timestamp,
           status: request.status,
         }));
-
-        setPreviousRequests(transformedRequests); // Set the transformed data
+ 
+        setPreviousRequests(transformedRequests);
       } catch (err: any) {
         setError(err.message);
       } finally {
         setLoadingRequests(false);
       }
     };
-
+ 
     fetchPreviousRequests();
-  }, [userInfo]); // Only run this effect when userInfo is available
-
+  }, [userInfo]);
+ 
   // Show loading states
   if (loadingUser || loadingRequests) {
     return <div>Loading...</div>;
   }
-
+ 
   if (error) {
     return <div>Error: {error}</div>;
   }
-
+ 
   if (!userInfo) {
     return <div>No user found</div>;
   }
-
+ 
   // Dynamically assign user attributes
   const userAttributes: UserAttributes = {
     role: userInfo.role,
     department: userInfo.department,
     clearance_level: userInfo.clearance_level,
-    trust_score:userInfo.trust_score,
-    id:userInfo.id
+    trust_score: userInfo.trust_score,
+    id: userInfo.id
   };
 
   return (
