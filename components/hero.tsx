@@ -11,7 +11,6 @@ export default function Header() {
       The Attribute-Based Access Control (ABAC) System with Trust Evaluation     
       </p>
 
-      <p className="text-blue">Presented by Shattah</p>
       <div className="w-full p-[1px] bg-gradient-to-r from-transparent via-foreground/10 to-transparent my-8" />
     </div>
   );
